@@ -4,7 +4,9 @@ from PIL.ExifTags import TAGS
 import os
 import sys
 
-def img_documenter(origin_direc, dest_direc, initials):
+SUFFIXES = (".jpg", ".png", ".gif", ".tif", ".tiff")
+
+def img_documenter(origin_direc, dest_direc, initials, verboseprint):
     if not os.path.exists(path=origin_direc):
         print("The given origin path does not exist")
         print("Please provide a proper path next time")
@@ -14,32 +16,53 @@ def img_documenter(origin_direc, dest_direc, initials):
         print("Please provide a proper path next time")
         sys.exit()
     origin_list = os.listdir(origin_direc)
-    print(origin_list)
-    sys.exit()
-    DateTakenValue = 0x9003
-    pre_file_name = "test.jpg"
-    img = Image.open(pre_file_name)
-    img.close()
-    exif = img._getexif()
-    # decode exif using TAGS
-    full_date = exif[DateTakenValue].split(sep=" ")
-    date = full_date[0]
-    time = full_date[1]
-    date = date.replace(":", "")
-    time = time.replace(":", "")
-    new_file_name = date + "-" + time + ".jpg"
-    if not os.path.isfile(new_file_name):
-        os.rename(pre_file_name, new_file_name)
-    elif new_file_name == pre_file_name:
-        print(pre_file_name + " already has the right name!")
-    else:
-        filetype_loc = new_file_name.find(".")
-        new_file_name = new_file_name[:filetype_loc] + "-1" + \
-                        new_file_name[filetype_loc:]
-        os.rename(pre_file_name, new_file_name)
 
-    print(date)
-    print(time)
+    # generators!
+    gen = (file for file in origin_list if file.lower().endswith(SUFFIXES))
+    for file in gen:
+        # TODO check for the file type
+        filetype_loc = file.find(".")
+        filetype = file[filetype_loc:].lower() # index indo the last part to get filetype
+        DateTakenValue = 0x9003
+        pre_file_name = file
+        img = Image.open(os.path.join(origin_direc, pre_file_name))
+        if not hasattr(img, '_getexif'):
+            img.close()
+            verboseprint("{} does not have exif data so it was not dealt with"
+                .format(pre_file_name))
+            verboseprint()
+            continue
+        exif = img._getexif()
+        img.close()
+        # decode exif using TAGS
+        full_date = exif[DateTakenValue].split(sep=" ")
+        date = full_date[0]
+        time = full_date[1]
+        date = date.replace(":", "")
+        time = time.replace(":", "")
+        if not initials: # check if none given
+            new_file_name = date + "-" + time + filetype
+        else:
+            new_file_name = date + "-" + time + "-" + initials + filetype
+
+        if not os.path.isfile(new_file_name):
+            old_full_file = os.path.join(origin_direc, pre_file_name)
+            new_full_file = os.path.join(dest_direc, new_file_name)
+            os.rename(old_full_file, new_full_file)
+            verboseprint("{} renamed to {}".format(pre_file_name, new_file_name))
+            verboseprint("Moved from {} to {}".format(origin_direc, dest_direc))
+        elif new_file_name == pre_file_name:
+            verboseprint(pre_file_name + " already has the right name!")
+        else:
+            filetype_loc = new_file_name.find(".")
+            new_file_name = new_file_name[:filetype_loc] + "-1" + \
+                            new_file_name[filetype_loc:]
+            os.rename(pre_file_name, new_file_name)
+            verboseprint("Oh, there already exists a file with predicted name..")
+            verboseprint("{} renamed to {}".format(pre_file_name, new_file_name))
+            verboseprint("Moved from {} to {}".format(origin_direc, dest_direc))
+        verboseprint() # extra newline
+    verboseprint("All done!")
 
 def are_you_sure():
     print("Please press 0 if this is okay and 1 is not")
@@ -70,6 +93,7 @@ Please see below for the different arguments that can be provided.""")
  and a path to output the files to
  Unless, you would like to read and write to the current dir""")
     args = parser.parse_args()
+    # below is lambda to print out stuff if verbose is enabled
     verboseprint = print if args.verbose else lambda *a, **k: None
     if len(args.initials) > 0:
         initials = args.initials
@@ -108,7 +132,7 @@ Please see below for the different arguments that can be provided.""")
         origin_direc = "."
         dest_direc = "."
 
-    img_documenter(origin_direc, dest_direc, initials)
+    img_documenter(origin_direc, dest_direc, initials, verboseprint)
     # print(origin_direc)
     # print(dest_direc)
     # print(args.verbose)
