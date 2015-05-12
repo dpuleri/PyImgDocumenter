@@ -4,7 +4,18 @@ from PIL.ExifTags import TAGS
 import os
 import sys
 
-def img_documenter(origin_direc, dest_direc):
+def img_documenter(origin_direc, dest_direc, initials):
+    if not os.path.exists(path=origin_direc):
+        print("The given origin path does not exist")
+        print("Please provide a proper path next time")
+        sys.exit()
+    elif not os.path.exists(path=dest_direc):
+        print("The given destination path does not exist")
+        print("Please provide a proper path next time")
+        sys.exit()
+    origin_list = os.listdir(origin_direc)
+    print(origin_list)
+    sys.exit()
     DateTakenValue = 0x9003
     pre_file_name = "test.jpg"
     img = Image.open(pre_file_name)
@@ -44,16 +55,19 @@ def are_you_sure():
     print()
 
 def main():
-    parser = argparse.ArgumentParser(description="Gather input directories and"\
-                                                 "initials")
+    parser = argparse.ArgumentParser(description=
+"""This is a helpful tool for one to be able to use bath rename photo files.
+Currently, it will only rename files to the general format of
+    YYYYMMDD-HHMMSS[-initials].filename -- note initials are optional.
+Please see below for the different arguments that can be provided.""")
     parser.add_argument("-v", "--verbose", help="increase output verbosity",
                     action="store_true")
     parser.add_argument("-i", "--initials", default="",
                     help="initials to append to the filename")
     parser.add_argument("filenames", nargs='*',
                     help=
-"""please provide a directory to read the images from
- and a directory to output the files to
+"""please provide a path to read the images from
+ and a path to output the files to
  Unless, you would like to read and write to the current dir""")
     args = parser.parse_args()
     verboseprint = print if args.verbose else lambda *a, **k: None
@@ -93,10 +107,12 @@ def main():
         are_you_sure()
         origin_direc = "."
         dest_direc = "."
-    print(origin_direc)
-    print(dest_direc)
-    print(args.verbose)
-    print(initials)
+
+    img_documenter(origin_direc, dest_direc, initials)
+    # print(origin_direc)
+    # print(dest_direc)
+    # print(args.verbose)
+    # print(initials)
 
 if __name__ == '__main__':
     main()
