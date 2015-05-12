@@ -2,11 +2,12 @@ import argparse
 from PIL import Image
 from PIL.ExifTags import TAGS
 import os
+import shutil
 import sys
 
 SUFFIXES = (".jpg", ".png", ".gif", ".tif", ".tiff")
 
-def img_documenter(origin_direc, dest_direc, initials, verboseprint):
+def img_documenter(origin_direc, dest_direc, initials, verboseprint, fileop):
     if not os.path.exists(path=origin_direc):
         print("The given origin path does not exist")
         print("Please provide a proper path next time")
@@ -45,19 +46,26 @@ def img_documenter(origin_direc, dest_direc, initials, verboseprint):
         else:
             new_file_name = date + "-" + time + "-" + initials + filetype
 
-        if not os.path.isfile(new_file_name):
-            old_full_file = os.path.join(origin_direc, pre_file_name)
-            new_full_file = os.path.join(dest_direc, new_file_name)
-            os.rename(old_full_file, new_full_file)
+        # get vars once outside the if
+        old_full_file = os.path.join(origin_direc, pre_file_name)
+        new_full_file = os.path.join(dest_direc, new_file_name)
+        # without the if statement below.. almost had a silent bug
+        if (not os.path.isfile(os.path.join(origin_direc ,new_file_name)) and
+            not os.path.isfile(new_full_file)):
+            fileop(old_full_file, new_full_file)
             verboseprint("{} renamed to {}".format(pre_file_name, new_file_name))
             verboseprint("Moved from {} to {}".format(origin_direc, dest_direc))
         elif new_file_name == pre_file_name:
             verboseprint(pre_file_name + " already has the right name!")
+            fileop(old_full_file, new_full_file)
+            verboseprint("Moved from {} to {}".format(origin_direc, dest_direc))
         else:
             filetype_loc = new_file_name.find(".")
             new_file_name = new_file_name[:filetype_loc] + "-1" + \
                             new_file_name[filetype_loc:]
-            os.rename(pre_file_name, new_file_name)
+            # next line is repeated to get the new full file path
+            new_full_file = os.path.join(dest_direc, new_file_name)
+            fileop(old_full_file, new_full_file)
             verboseprint("Oh, there already exists a file with predicted name..")
             verboseprint("{} renamed to {}".format(pre_file_name, new_file_name))
             verboseprint("Moved from {} to {}".format(origin_direc, dest_direc))
@@ -87,6 +95,10 @@ Please see below for the different arguments that can be provided.""")
                     action="store_true")
     parser.add_argument("-i", "--initials", default="",
                     help="initials to append to the filename")
+    parser.add_argument("-c", "--copy", action="store_true",
+                    help=
+"""if enabled, instead of renaming the files it will make a copy with
+ the correct name""")
     parser.add_argument("filenames", nargs='*',
                     help=
 """please provide a path to read the images from
@@ -95,6 +107,7 @@ Please see below for the different arguments that can be provided.""")
     args = parser.parse_args()
     # below is lambda to print out stuff if verbose is enabled
     verboseprint = print if args.verbose else lambda *a, **k: None
+    fileop = shutil.copy2 if args.copy else shutil.move
     if len(args.initials) > 0:
         initials = args.initials
     else:
@@ -132,7 +145,7 @@ Please see below for the different arguments that can be provided.""")
         origin_direc = "."
         dest_direc = "."
 
-    img_documenter(origin_direc, dest_direc, initials, verboseprint)
+    img_documenter(origin_direc, dest_direc, initials, verboseprint, fileop)
     # print(origin_direc)
     # print(dest_direc)
     # print(args.verbose)
