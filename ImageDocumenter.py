@@ -17,6 +17,8 @@ def img_documenter(origin_direc, dest_direc, initials, verboseprint, fileop):
         print("Please provide a proper path next time")
         sys.exit()
     origin_list = os.listdir(origin_direc)
+    move_count = 0
+    miss_count = 0
 
     # generators!
     gen = (file for file in origin_list if file.lower().endswith(SUFFIXES))
@@ -32,6 +34,7 @@ def img_documenter(origin_direc, dest_direc, initials, verboseprint, fileop):
             verboseprint("{} does not have exif data so it was not dealt with"
                 .format(pre_file_name))
             verboseprint()
+            miss_count += 1
             continue
         exif = img._getexif()
         img.close()
@@ -70,7 +73,12 @@ def img_documenter(origin_direc, dest_direc, initials, verboseprint, fileop):
             verboseprint("{} renamed to {}".format(pre_file_name, new_file_name))
             verboseprint("Moved from {} to {}".format(origin_direc, dest_direc))
         verboseprint() # extra newline
+        move_count += 1
+
     verboseprint("All done!")
+    verboseprint("{} file(s) were moved".format(move_count))
+    verboseprint("{} file(s) were missed because of lack of EXIF data"
+        .format(miss_count))
 
 def are_you_sure():
     print("Please press 0 if this is okay and 1 is not")
