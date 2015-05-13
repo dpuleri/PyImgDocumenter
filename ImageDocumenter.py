@@ -1,11 +1,13 @@
 import argparse
+import datetime
 from PIL import Image
 from PIL.ExifTags import TAGS
 import os
 import shutil
 import sys
 
-SUFFIXES = (".jpg", ".png", ".gif", ".tif", ".tiff")
+SUFFIXES = (".jpg", "jpeg", ".png", ".gif", ".tif", ".tiff")
+DATE_TAKEN_KEY = 0x9003
 
 def img_documenter(origin_direc, dest_direc, initials, verboseprint, fileop):
     if not os.path.exists(path=origin_direc):
@@ -23,10 +25,8 @@ def img_documenter(origin_direc, dest_direc, initials, verboseprint, fileop):
     # generators!
     gen = (file for file in origin_list if file.lower().endswith(SUFFIXES))
     for file in gen:
-        # TODO check for the file type
         filetype_loc = file.find(".")
         filetype = file[filetype_loc:].lower() # index indo the last part to get filetype
-        DateTakenValue = 0x9003
         pre_file_name = file
         img = Image.open(os.path.join(origin_direc, pre_file_name))
         if not hasattr(img, '_getexif'):
@@ -39,7 +39,16 @@ def img_documenter(origin_direc, dest_direc, initials, verboseprint, fileop):
         exif = img._getexif()
         img.close()
         # decode exif using TAGS
-        full_date = exif[DateTakenValue].split(sep=" ")
+        if DATE_TAKEN_KEY not in exif:
+            # this takes care of weird jpg files without date taken stamp
+            unix_time = os.path.getmtime(file)
+            full_date = datetime.datetime.fromtimestamp(
+                unix_time
+                ).strftime('%Y:%m:%d %H:%M:%S').split(sep=" ")
+            verboseprint("{} did not have date taken EXIF data".format(pre_file_name))
+            verboseprint("Date modified from file metadata will be used")
+        else:
+            full_date = exif[DATE_TAKEN_KEY].split(sep=" ")
         date = full_date[0]
         time = full_date[1]
         date = date.replace(":", "")
@@ -95,8 +104,9 @@ def are_you_sure():
 
 def main():
     parser = argparse.ArgumentParser(description=
-"""This is a helpful tool for one to be able to use bath rename photo files.
-Currently, it will only rename files to the general format of
+"""This is a helpful tool for one to be able to batch rename and move photo files.
+It will either rename or copy the files based on whether ot not "-c" is used.
+Files are renamed to the general format of
     YYYYMMDD-HHMMSS[-initials].filename -- note initials are optional.
 Please see below for the different arguments that can be provided.""")
     parser.add_argument("-v", "--verbose", help="increase output verbosity",
@@ -154,10 +164,6 @@ Please see below for the different arguments that can be provided.""")
         dest_direc = "."
 
     img_documenter(origin_direc, dest_direc, initials, verboseprint, fileop)
-    # print(origin_direc)
-    # print(dest_direc)
-    # print(args.verbose)
-    # print(initials)
 
 if __name__ == '__main__':
     main()
