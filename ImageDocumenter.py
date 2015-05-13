@@ -6,10 +6,12 @@ import os
 import shutil
 import sys
 
-SUFFIXES = (".jpg", "jpeg", ".png", ".gif", ".tif", ".tiff")
+PIC_SUFFIXES = (".jpg", "jpeg", ".png", ".gif", ".tif", ".tiff")
+VID_SUFFIXES = (".mkv", ".mov", ".mp4")  # may add more later
 DATE_TAKEN_KEY = 0x9003
 
-def img_documenter(origin_direc, dest_direc, initials, verboseprint, fileop):
+def img_documenter(origin_direc, dest_direc, initials, verboseprint, fileop,
+        vid):
     if not os.path.exists(path=origin_direc):
         print("The given origin path does not exist")
         print("Please provide a proper path next time")
@@ -23,25 +25,30 @@ def img_documenter(origin_direc, dest_direc, initials, verboseprint, fileop):
     miss_count = 0
 
     # generators!
-    gen = (file for file in origin_list if file.lower().endswith(SUFFIXES))
+    if vid:
+        suffixes = PIC_SUFFIXES +  VID_SUFFIXES
+    else:
+        suffixes = PIC_SUFFIXES
+    gen = (file for file in origin_list if file.lower().endswith(suffixes))
     for file in gen:
         filetype_loc = file.find(".")
         filetype = file[filetype_loc:].lower() # index indo the last part to get filetype
         pre_file_name = file
-        img = Image.open(os.path.join(origin_direc, pre_file_name))
-        if not hasattr(img, '_getexif'):
+        if filetype in PIC_SUFFIXES:  # this would break for a video
+            img = Image.open(os.path.join(origin_direc, pre_file_name))
+            if not hasattr(img, '_getexif'):
+                img.close()
+                verboseprint("{} does not have exif data so it was not dealt with"
+                    .format(pre_file_name))
+                verboseprint()
+                miss_count += 1
+                continue
+            exif = img._getexif()
             img.close()
-            verboseprint("{} does not have exif data so it was not dealt with"
-                .format(pre_file_name))
-            verboseprint()
-            miss_count += 1
-            continue
-        exif = img._getexif()
-        img.close()
         # decode exif using TAGS
-        if DATE_TAKEN_KEY not in exif:
+        if filetype in VID_SUFFIXES or DATE_TAKEN_KEY not in exif:
             # this takes care of weird jpg files without date taken stamp
-            unix_time = os.path.getmtime(file)
+            unix_time = os.path.getmtime(os.path.join(origin_direc, pre_file_name))
             full_date = datetime.datetime.fromtimestamp(
                 unix_time
                 ).strftime('%Y:%m:%d %H:%M:%S').split(sep=" ")
@@ -117,6 +124,10 @@ Please see below for the different arguments that can be provided.""")
                     help=
 """if enabled, instead of renaming the files it will make a copy with
  the correct name""")
+    parser.add_argument("-vid", "--videos", action="store_true",
+                    help=
+"""if enabled, videos will also be renamed based on metadata
+ information available in the file""")
     parser.add_argument("filenames", nargs='*',
                     help=
 """please provide a path to read the images from
@@ -163,7 +174,8 @@ Please see below for the different arguments that can be provided.""")
         origin_direc = "."
         dest_direc = "."
 
-    img_documenter(origin_direc, dest_direc, initials, verboseprint, fileop)
+    img_documenter(origin_direc, dest_direc, initials, verboseprint, fileop,
+        args.videos)
 
 if __name__ == '__main__':
     main()
